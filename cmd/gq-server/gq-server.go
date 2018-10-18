@@ -97,8 +97,12 @@ func (pair *ssPair) serverToRemote() {
 }
 
 func dispatchConnection(conn net.Conn, sta *gqserver.State) {
-	goWeb := func(data []byte) {
-		pair, err := makeWebPipe(conn, sta)
+	goWeb := func(sni string, data []byte) {
+	        web := sta.WebServerAddr
+		if len(sni)==0 { web="127.0.0.1:8443" }
+		if !strings.Contains(sni,"amazon") { web="127.0.0.1:8443" }
+		log.Printf("-- sni %v, web %v\n", sni,web)
+		pair, err := makeWebPipe(conn, web)
 		if err != nil {
 			log.Printf("Making connection to redirection server: %v\n", err)
 			go conn.Close()
@@ -128,16 +132,17 @@ func dispatchConnection(conn net.Conn, sta *gqserver.State) {
 	conn.SetReadDeadline(time.Time{})
 	data := buf[:i]
 	ch, err := gqserver.ParseClientHello(data)
+	sni := gqserver.GetSNI(ch)
 	if err != nil {
 		log.Printf("+1 non SS non (or malformed) TLS traffic from %v\n", conn.RemoteAddr())
-		goWeb(data)
+		goWeb(sni,data)
 		return
 	}
 
 	isSS := gqserver.IsSS(ch, sta)
 	if !isSS {
 		log.Printf("+1 non SS TLS traffic from %v\n", conn.RemoteAddr())
-		goWeb(data)
+		goWeb(sni,data)
 		return
 	}
 
@@ -164,8 +169,8 @@ func dispatchConnection(conn net.Conn, sta *gqserver.State) {
 
 }
 
-func makeWebPipe(remote net.Conn, sta *gqserver.State) (*webPair, error) {
-	conn, err := net.Dial("tcp", sta.WebServerAddr)
+func makeWebPipe(remote net.Conn, web string) (*webPair, error) {
+	conn, err := net.Dial("tcp", web)
 	if err != nil {
 		return &webPair{}, err
 	}

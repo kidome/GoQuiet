@@ -62,6 +62,26 @@ func PeelRecordLayer(data []byte) []byte {
 	return ret
 }
 
+// GetSNI get sni host name from clienthello
+func GetSNI(ch *ClientHello) (host string) {
+     if ch==nil {
+        host = ""
+	return host
+	}	   
+
+sni, ok := ch.extensions[[2]byte{0x00, 0x00}]
+if !ok {
+   host = ""
+   return host
+ }
+
+//length := BtoInt(sni[3:5])
+host = string(sni[5:])
+
+return host
+
+}
+
 // ParseClientHello parses everything on top of the TLS layer
 // (including the record layer) into ClientHello type
 func ParseClientHello(data []byte) (ret *ClientHello, err error) {
